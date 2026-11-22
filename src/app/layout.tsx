@@ -5,9 +5,10 @@ import { DEFAULT_THEME, THEMES } from '@/components/themes/theme.config';
 import ThemeProvider from '@/components/themes/theme-provider';
 import { cn } from '@/lib/utils';
 import type { Metadata, Viewport } from 'next';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import NextTopLoader from 'nextjs-toploader';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
+import { directionForLocale, LOCALE_COOKIE_NAME, normalizeLocale } from '@/i18n/locale';
 import '../styles/globals.css';
 
 const META_THEME_COLORS = {
@@ -54,13 +55,18 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies();
+  const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
   const activeThemeValue = cookieStore.get('active_theme')?.value;
   const isValidTheme = THEMES.some((t) => t.value === activeThemeValue);
   const themeToApply = isValidTheme ? activeThemeValue! : DEFAULT_THEME;
 
+  const headerLocale = headerStore.get('x-locale');
+  const localeCookie = cookieStore.get(LOCALE_COOKIE_NAME)?.value;
+  const activeLocale = normalizeLocale(headerLocale || localeCookie);
+  const activeDir = directionForLocale(activeLocale);
+
   return (
-    <html lang='en' suppressHydrationWarning data-theme={themeToApply}>
+    <html lang={activeLocale} dir={activeDir} suppressHydrationWarning data-theme={themeToApply}>
       <head>
         <script
           dangerouslySetInnerHTML={{

@@ -89,6 +89,7 @@ import {
   IconUsers,
   IconVideo,
   IconCrown,
+  IconWorld,
   IconX
 } from '@tabler/icons-react';
 
@@ -215,6 +216,9 @@ export const Icons = {
   toastWarning: IconAlertTriangle,
   toastError: IconCircleX,
   toastLoading: IconLoader2,
+
+  // i18n
+  globe: IconWorld,
 
   // Misc
   pizza: IconPizza,

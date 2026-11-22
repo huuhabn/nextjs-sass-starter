@@ -64,9 +64,9 @@ function ToolMarker({ part }: { part: ToolPart }) {
 }
 
 export function AiChatDemo() {
-  const { messages, sendMessage, status, setMessages } = useChat<DemoUIMessage>({
-    messages: initialMessages,
-    transport: chatTransport
+  const { messages, sendMessage, status, setMessages } = useChat<any>({
+    messages: initialMessages as any,
+    transport: chatTransport as any
   });
 
   const nextMessage = demoChat.next(messages);
@@ -125,7 +125,7 @@ export function AiChatDemo() {
                             )}
                           </MessageAvatar>
                           <MessageContent>
-                            {message.parts.map((part, i) => {
+                            {message.parts.map((part: any, i: number) => {
                               const key = `${message.id}-${i}`;
                               if (part.type === 'text') {
                                 return (
@@ -186,7 +186,7 @@ export function AiChatDemo() {
           <Button
             variant='outline'
             size='sm'
-            onClick={() => setMessages(demoChat.get(0))}
+            onClick={() => setMessages(demoChat.get(0) as any)}
             disabled={isBusy || messages.length === 0}
           >
             Restart
@@ -197,7 +197,7 @@ export function AiChatDemo() {
             loadingLabel='Streaming response'
             disabled={!nextMessage}
             onClick={() => {
-              if (nextMessage) void sendMessage(nextMessage);
+              if (nextMessage) void sendMessage(nextMessage as any);
             }}
           >
             {nextMessage ? (
