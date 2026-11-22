@@ -14,7 +14,6 @@ export interface Session {
   createdAt: Date;
   group?: string;
   id: string;
-  /** Market agent identifier for published agents */
   marketIdentifier?: string;
   meta: MetaData;
   model: string;
@@ -24,4 +23,4 @@ export interface Session {
   updatedAt: Date;
 }
 
-export type LobeSessions = Session[];
+export type Sessions = Session[];

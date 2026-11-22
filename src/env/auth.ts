@@ -1,4 +1,4 @@
-import { createEnv } from '@t3-oss/env-core';
+import { createEnv } from '@t3-oss/env-nextjs';
 import { z } from 'zod';
 
 const INTERNAL_JWT_EXPIRATION_PATTERN =
@@ -43,7 +43,6 @@ declare global {
 
 export const getAuthConfig = () => {
   return createEnv({
-    clientPrefix: 'NEXT_PUBLIC_',
     client: {},
     server: {
       AUTH_COOKIE_PREFIX: z.string().optional(),

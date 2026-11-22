@@ -4,27 +4,17 @@ import { drizzle as nodeDrizzle } from 'drizzle-orm/node-postgres';
 import { Pool as NodePool } from 'pg';
 import ws from 'ws';
 
-import { appEnv as serverDBEnv } from '@/env/app';
-
 import * as schema from '../schemas';
-import type { LobeChatDatabase } from '../type';
+import type { AppDatabase } from '../type';
 
 const DEFAULT_POOL_ACQUIRE_TIMEOUT_MS = 30_000;
 
-/**
- * Pool options shared by the node and neon drivers.
- *
- * `connectionTimeoutMillis` bounds the wait for a free pool connection. pg's default is 0 (wait
- * forever): on 2026-11-02 one exhausted pool hung every request on its Vercel instance for 300s
- * until the function timed out, instead of failing the requests that could not get a connection.
- */
-export const buildPoolOptions = (env: {
+export interface PoolOptionsConfig {
   DATABASE_POOL_ACQUIRE_TIMEOUT?: number;
   DATABASE_STATEMENT_TIMEOUT?: number;
-}) => {
-  // When DATABASE_STATEMENT_TIMEOUT is set, Postgres aborts any statement (and any
-  // transaction left idle) exceeding it on the server side, so a stuck query can't
-  // block indefinitely. Omit the keys entirely when unset to keep Postgres' defaults.
+}
+
+export const buildPoolOptions = (env: PoolOptionsConfig = {}) => {
   const statementTimeout = env.DATABASE_STATEMENT_TIMEOUT;
 
   return {
@@ -38,57 +28,49 @@ export const buildPoolOptions = (env: {
   };
 };
 
-export const getDBInstance = (): LobeChatDatabase => {
-  // In test environment, return a mock instance to avoid initialization errors
-  if (process.env.NODE_ENV === 'test') return {} as LobeChatDatabase;
+export interface DBConfig {
+  connectionString?: string;
+  driver?: 'node' | 'neon';
+  poolOptions?: PoolOptionsConfig;
+}
 
-  if (!serverDBEnv.KEY_VAULTS_SECRET) {
+export const getDBInstance = (config?: DBConfig): AppDatabase => {
+  const connectionString = config?.connectionString ?? process.env.DATABASE_URL;
+
+  if (!connectionString) {
     throw new Error(
-      ` \`KEY_VAULTS_SECRET\` is not set, please set it in your environment variables.
-
-If you don't have it, please run \`openssl rand -base64 32\` to create one.
-`
+      'DATABASE_URL is not set. Please provide a valid database connection string in your environment.'
     );
   }
 
-  const connectionString = serverDBEnv.DATABASE_URL;
+  const poolOptions = buildPoolOptions(config?.poolOptions);
+  const driver =
+    config?.driver ??
+    (process.env.DATABASE_DRIVER as 'node' | 'neon') ??
+    (connectionString.includes('neon.tech') ? 'neon' : 'node');
 
-  if (!connectionString) {
-    throw new Error(`You are try to use database, but "DATABASE_URL" is not set correctly`);
-  }
-
-  const poolOptions = buildPoolOptions(serverDBEnv);
-
-  if (serverDBEnv.DATABASE_DRIVER === 'node') {
+  if (driver === 'node') {
     const client = new NodePool({ connectionString, ...poolOptions });
-    // pg.Pool emits 'error' on idle clients when the backend connection drops.
-    // Without a listener Node escalates it to uncaughtException and exits the process.
-    // See: https://node-postgres.com/apis/pool#error
     client.on('error', (err) => {
-      console.error('[NodePool] idle client error (swallowed to prevent process crash):', {
+      console.error('[NodePool] idle client error:', {
         code: (err as NodeJS.ErrnoException).code,
-        message: err.message,
-        stack: err.stack
+        message: err.message
       });
     });
-    return nodeDrizzle(client, { schema });
+    return nodeDrizzle(client, { schema }) as AppDatabase;
   }
 
-  if (process.env.MIGRATION_DB === '1') {
-    // https://github.com/neondatabase/serverless/blob/main/CONFIG.md#websocketconstructor-typeof-websocket--undefined
+  // Neon serverless driver
+  if (typeof WebSocket === 'undefined') {
     neonConfig.webSocketConstructor = ws;
   }
 
   const client = new NeonPool({ connectionString, ...poolOptions });
-  // NeonPool runs over WebSocket; transient drops surface as 'error' on the pool.
-  // Without a listener Node escalates it to uncaughtException — on Vercel this killed
-  // the entire Lambda 1800+ times in 5 minutes (see ).
   client.on('error', (err: Error) => {
-    console.error('[NeonPool] idle client error (swallowed to prevent process crash):', {
-      code: (err as NodeJS.ErrnoException).code,
-      message: err.message,
-      stack: err.stack
+    console.error('[NeonPool] idle client error:', {
+      message: err.message
     });
   });
-  return neonDrizzle(client, { schema });
+
+  return neonDrizzle(client, { schema }) as AppDatabase;
 };

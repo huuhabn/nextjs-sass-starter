@@ -88,17 +88,9 @@ export interface UserMemoryExtractionProgress {
   totalTopics: number | null;
 }
 
-/**
- * Provider metadata for Upstash workflow-backed async task runs.
- */
 export interface UpstashWorkflowRunMetadata {
-  /**
-   * Workflow run id of the wrapper run that created this async task.
-   */
   entryWorkflowRunId?: string;
-  /**
-   * Known workflow run ids associated with this task.
-   */
+
   workflowRunIds?: string[];
 }
 

@@ -1,3 +1,3 @@
-import type { HotkeyId } from '../../hotkey';
+export type HotkeyId = string;
 
 export type UserHotkeyConfig = Record<HotkeyId, string>;

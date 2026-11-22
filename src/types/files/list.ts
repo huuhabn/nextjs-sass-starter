@@ -70,7 +70,7 @@ export const QueryFileListSchema = z.object({
   showFilesInKnowledgeBase: z.boolean().default(false),
   sortType: z.enum(['desc', 'asc']).optional(),
   sorter: z.enum(['custom', 'name', 'createdAt', 'size', 'updatedAt']).optional(),
-  sourceFilter: z.nativeEnum(ResourceSourceFilter).optional(),
+  sourceFilter: z.enum(ResourceSourceFilter).optional(),
   visibility: z.enum(['private', 'public']).optional()
 });
 

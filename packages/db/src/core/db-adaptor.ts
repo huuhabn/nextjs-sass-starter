@@ -1,19 +1,13 @@
-import type { LobeChatDatabase } from '../type';
-import { getDBInstance } from './web-server';
+import type { AppDatabase } from '../type';
+import { type DBConfig, getDBInstance } from './web-server';
 
-/**
- * Lazy-load database instance
- * Avoid initializing the database every time the module is imported
- */
-let cachedDB: LobeChatDatabase | null = null;
+let cachedDB: AppDatabase | null = null;
 
-export const getServerDB = async (): Promise<LobeChatDatabase> => {
-  // If there's already a cached instance, return it directly
+export const getServerDB = async (config?: DBConfig): Promise<AppDatabase> => {
   if (cachedDB) return cachedDB;
 
   try {
-    // Select the appropriate database instance based on the environment
-    cachedDB = getDBInstance();
+    cachedDB = getDBInstance(config);
     return cachedDB;
   } catch (error) {
     console.error('❌ Failed to initialize database:', error);
@@ -21,4 +15,15 @@ export const getServerDB = async (): Promise<LobeChatDatabase> => {
   }
 };
 
-export const serverDB = getDBInstance();
+/**
+ * Lazy getter for serverDB so accessing it does not throw at import time
+ * if DATABASE_URL is not set yet in test or build environments.
+ */
+export const serverDB: AppDatabase = new Proxy({} as AppDatabase, {
+  get(_target, prop) {
+    if (!cachedDB) {
+      cachedDB = getDBInstance();
+    }
+    return (cachedDB as unknown as Record<string | symbol, unknown>)[prop];
+  }
+});

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { LobeAgentSettings } from '../../session';
+export type AgentSettings = Record<string, unknown>;
 import type { UserGeneralConfig } from './general';
 import type { UserHotkeyConfig } from './hotkey';
 import type { UserImageConfig } from './image';
@@ -13,7 +13,7 @@ import type { ServiceModelTierConfig, UserServiceModelConfig } from './systemAge
 import type { UserToolConfig } from './tool';
 import type { UserTTSConfig } from './tts';
 
-export type UserDefaultAgent = LobeAgentSettings;
+export type UserDefaultAgent = AgentSettings;
 
 export * from './filesConfig';
 export * from './general';
@@ -29,9 +29,6 @@ export * from './systemAgent';
 export * from './tool';
 export * from './tts';
 
-/**
- * User configuration settings
- */
 export interface UserSettings {
   defaultAgent: UserDefaultAgent;
   general: UserGeneralConfig;
@@ -47,10 +44,6 @@ export interface UserSettings {
   tts: UserTTSConfig;
 }
 
-/**
- * Zod schema for partial UserSettings updates
- * Uses passthrough to allow any nested settings fields
- */
 export const UserSettingsSchema = z
   .object({
     defaultAgent: z.any().optional(),
@@ -66,5 +59,5 @@ export const UserSettingsSchema = z
     tool: z.any().optional(),
     tts: z.any().optional()
   })
-  .passthrough()
+  .loose()
   .partial();

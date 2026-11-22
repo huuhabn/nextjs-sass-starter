@@ -1,4 +1,4 @@
-import { createEnv } from '@t3-oss/env-core';
+import { createEnv } from '@t3-oss/env-nextjs';
 import { z } from 'zod';
 
 const isInVercel = process.env.VERCEL === '1';
@@ -33,15 +33,16 @@ export const getAppConfig = () => {
   const S3_PUBLIC_DOMAIN = process.env.S3_PUBLIC_DOMAIN;
 
   return createEnv({
-    clientPrefix: 'NEXT_PUBLIC_',
     client: {
-      NEXT_PUBLIC_ENABLE_SENTRY: z.boolean()
+      NEXT_PUBLIC_ENABLE_SENTRY: z.boolean().optional(),
+      NEXT_PUBLIC_S3_DOMAIN: z.string().optional(),
+      NEXT_PUBLIC_S3_FILE_PATH: z.string().optional()
     },
     server: {
       APP_URL: z.string(),
       INTERNAL_APP_URL: z.string().optional(),
       VIDEO_GENERATION_PREFER_WEBHOOK: z.boolean().optional(),
-      WEBHOOK_PROXY_URL: z.string().url().optional(),
+      WEBHOOK_PROXY_URL: z.url().optional(),
       VERCEL_EDGE_CONFIG: z.string().optional(),
       MIDDLEWARE_REWRITE_THROUGH_LOCAL: z.boolean().optional(),
 
@@ -63,8 +64,8 @@ export const getAppConfig = () => {
       S3_ACCESS_KEY_ID: z.string().optional(),
       S3_BUCKET: z.string().optional(),
       S3_ENABLE_PATH_STYLE: z.boolean(),
-      S3_ENDPOINT: z.string().url().optional(),
-      S3_INTERNAL_ENDPOINT: z.string().url().optional(),
+      S3_ENDPOINT: z.url().optional(),
+      S3_INTERNAL_ENDPOINT: z.url().optional(),
       S3_PREVIEW_URL_EXPIRE_IN: z.number(),
       S3_PUBLIC_DOMAIN: z.string().optional(),
       S3_REGION: z.string().optional(),
@@ -79,6 +80,7 @@ export const getAppConfig = () => {
       INTERNAL_APP_URL,
       VIDEO_GENERATION_PREFER_WEBHOOK: process.env.VIDEO_GENERATION_PREFER_WEBHOOK === '1',
       WEBHOOK_PROXY_URL: process.env.WEBHOOK_PROXY_URL,
+      VERCEL_EDGE_CONFIG: process.env.VERCEL_EDGE_CONFIG,
       MIDDLEWARE_REWRITE_THROUGH_LOCAL: process.env.MIDDLEWARE_REWRITE_THROUGH_LOCAL === '1',
 
       SSRF_ALLOW_PRIVATE_IP_ADDRESS: process.env.SSRF_ALLOW_PRIVATE_IP_ADDRESS === '1',

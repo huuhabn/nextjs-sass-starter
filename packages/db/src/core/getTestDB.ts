@@ -1,49 +1,39 @@
-import { drizzle as nodeDrizzle } from 'drizzle-orm/node-postgres';
-import { migrate as nodeMigrate } from 'drizzle-orm/node-postgres/migrator';
-import { drizzle as pgliteDrizzle } from 'drizzle-orm/pglite';
-import { migrate as pgliteMigrate } from 'drizzle-orm/pglite/migrator';
-import { Pool as NodePool } from 'pg';
-
-import { serverDBEnv } from '@/config/db';
+import { PGlite } from '@electric-sql/pglite';
+import { drizzle } from 'drizzle-orm/pglite';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import * as schema from '../schemas';
-import type { LobeChatDatabase } from '../type';
-import { createPGlite, migrationsFolder, readPGliteSnapshot } from './pgliteSnapshot';
+import type { AppDatabase } from '../type';
 
-const isServerDBMode = process.env.TEST_SERVER_DB === '1';
+let testDBInstance: AppDatabase | null = null;
 
-let testClientDB: ReturnType<typeof pgliteDrizzle<typeof schema>> | null = null;
-let testServerDB: ReturnType<typeof nodeDrizzle<typeof schema>> | null = null;
+export const getTestDB = async (): Promise<AppDatabase> => {
+  if (testDBInstance) return testDBInstance;
 
-export const getTestDB = async (): Promise<LobeChatDatabase> => {
-  // Server DB mode (node-postgres)
-  if (isServerDBMode) {
-    if (testServerDB) return testServerDB as unknown as LobeChatDatabase;
+  const pglite = new PGlite();
 
-    const connectionString = serverDBEnv.DATABASE_TEST_URL;
+  // Find migrations directory relative to this file
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  const migrationsDir = path.resolve(currentDir, '../../migrations');
 
-    if (!connectionString) {
-      throw new Error('DATABASE_TEST_URL is not set');
+  const migrationFiles = ['0000_base_tables.sql', '0001_saas_extensions.sql'];
+
+  for (const file of migrationFiles) {
+    const fullPath = path.join(migrationsDir, file);
+    if (fs.existsSync(fullPath)) {
+      const sqlContent = fs.readFileSync(fullPath, 'utf8');
+      const statements = sqlContent.split('--> statement-breakpoint');
+      for (const statement of statements) {
+        const trimmed = statement.trim();
+        if (trimmed) {
+          await pglite.exec(trimmed);
+        }
+      }
     }
-
-    const client = new NodePool({ connectionString });
-    testServerDB = nodeDrizzle(client, { schema });
-
-    await nodeMigrate(testServerDB, { migrationsFolder });
-
-    return testServerDB as unknown as LobeChatDatabase;
   }
 
-  // Client DB mode (PGlite)
-  if (testClientDB) return testClientDB as unknown as LobeChatDatabase;
-
-  const snapshot = readPGliteSnapshot();
-  const pglite = createPGlite(snapshot);
-  testClientDB = pgliteDrizzle({ client: pglite, schema });
-
-  // The global setup's snapshot is already migrated; without it, migrate here.
-  // pg_search migrations skip themselves when the extension is unavailable, as in PGlite.
-  if (!snapshot) await pgliteMigrate(testClientDB, { migrationsFolder });
-
-  return testClientDB as unknown as LobeChatDatabase;
+  testDBInstance = drizzle({ client: pglite, schema }) as unknown as AppDatabase;
+  return testDBInstance;
 };

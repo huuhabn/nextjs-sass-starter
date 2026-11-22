@@ -1,401 +1,130 @@
-import type {
-  WorkspaceApiKeyMemberCreation,
-  WorkspaceConnectorMemberManage
-} from '@lobechat/types';
-import { and, count, desc, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 
-import {
-  type NewWorkspace,
-  type WorkspaceItem,
-  workspaceMembers,
-  workspaces,
-  workspaceTeamMembers,
-  workspaceTeams
-} from '../schemas/workspace';
-import type { LobeChatDatabase } from '../type';
-import { AGENT_TRANSFER_PENDING_OWNER_DELETE, AgentTransferJobModel } from './agentTransferJob';
-import { countOf } from './utils/rows';
-import { DEFAULT_TEAM_IDENTIFIER, deriveTeamIdentifier } from './workspaceTeam';
-
-export const getActiveWorkspaceMembershipRole = async (
-  db: LobeChatDatabase,
-  params: { userId: string; workspaceId: string }
-): Promise<string | null> => {
-  const [row] = await db
-    .select({ primaryOwnerId: workspaces.primaryOwnerId, role: workspaceMembers.role })
-    .from(workspaceMembers)
-    .innerJoin(workspaces, eq(workspaces.id, workspaceMembers.workspaceId))
-    .where(
-      and(
-        eq(workspaceMembers.workspaceId, params.workspaceId),
-        eq(workspaceMembers.userId, params.userId),
-        isNull(workspaceMembers.deletedAt)
-      )
-    )
-    .limit(1);
-  if (!row) return null;
-  // Owner is bound to `workspaces.primaryOwnerId`; un-converged legacy
-  // co-owner labels count as Admin.
-  if (row.role === 'owner' && row.primaryOwnerId !== params.userId) return 'admin';
-  return row.role;
-};
-
-/**
- * Whether `userId` currently holds owner status in `workspaceId`.
- * `workspace_members.role` is the single source of truth for built-in roles
- *. Used by the workspace-API-key owner gates on both the OpenAPI
- * and lambda TRPC surfaces.
- */
-export const hasWorkspaceOwnerAccess = async (
-  db: LobeChatDatabase,
-  params: { userId: string; workspaceId: string }
-): Promise<boolean> => {
-  return (await getActiveWorkspaceMembershipRole(db, params)) === 'owner';
-};
-
-/**
- * Whether a member may administer workspace-level shared configuration. Owner
- * and Admin pass; Member and Viewer do not.
- */
-export const hasWorkspaceAdminAccess = async (
-  db: LobeChatDatabase,
-  params: { userId: string; workspaceId: string }
-): Promise<boolean> => {
-  const role = await getActiveWorkspaceMembershipRole(db, params);
-  return role === 'owner' || role === 'admin';
-};
-
-export const hasActiveWorkspaceMembership = async (
-  db: LobeChatDatabase,
-  params: { userId: string; workspaceId: string }
-): Promise<boolean> => {
-  return (await getActiveWorkspaceMembershipRole(db, params)) !== null;
-};
-
-export const getWorkspaceApiKeyMemberCreation = (
-  settings: unknown
-): WorkspaceApiKeyMemberCreation => {
-  if (!settings || typeof settings !== 'object') return 'all_members';
-
-  const apiKey = (settings as { apiKey?: unknown }).apiKey;
-  if (!apiKey || typeof apiKey !== 'object') return 'all_members';
-
-  return (apiKey as { memberCreation?: unknown }).memberCreation === 'admins_only'
-    ? 'admins_only'
-    : 'all_members';
-};
-
-export const getWorkspaceConnectorMemberManage = (
-  settings: unknown
-): WorkspaceConnectorMemberManage => {
-  if (!settings || typeof settings !== 'object') return 'all_members';
-
-  const connector = (settings as { connector?: unknown }).connector;
-  if (!connector || typeof connector !== 'object') return 'all_members';
-
-  return (connector as { memberManage?: unknown }).memberManage === 'admins_only'
-    ? 'admins_only'
-    : 'all_members';
-};
+import { WorkspaceNotFoundError } from '../errors';
+import type { NewWorkspace, WorkspaceItem } from '../schemas/workspace';
+import { workspaceMembers, workspaces } from '../schemas/workspace';
+import type { AppDatabase } from '../type';
+import { idGenerator, randomSlug } from '../utils/idGenerator';
 
 export class WorkspaceModel {
-  protected readonly db: LobeChatDatabase;
-  protected readonly userId: string;
+  private userId: string;
+  private db: AppDatabase;
 
-  constructor(db: LobeChatDatabase, userId: string) {
-    this.db = db;
+  constructor(db: AppDatabase, userId: string) {
     this.userId = userId;
+    this.db = db;
   }
 
-  create = async (params: {
-    avatar?: string;
-    description?: string;
-    name: string;
-    slug: string;
-  }) => {
+  create = async (params: Partial<NewWorkspace> & { name: string }): Promise<WorkspaceItem> => {
+    const id = params.id ?? idGenerator('workspace');
+    const slug = params.slug ?? randomSlug('ws');
+
     return this.db.transaction(async (tx) => {
       const [workspace] = await tx
         .insert(workspaces)
         .values({
-          avatar: params.avatar,
-          description: params.description,
-          name: params.name,
+          id,
+          slug,
+          description: null,
+          avatar: null,
           primaryOwnerId: this.userId,
-          slug: params.slug
-        } satisfies NewWorkspace)
+          settings: {},
+          ...params
+        } as NewWorkspace)
         .returning();
 
-      // `workspace_members.role` is the single source of truth for built-in
-      // workspace roles — no RBAC rows are seeded per workspace.
+      // Automatically add the creator as 'owner'
       await tx.insert(workspaceMembers).values({
-        role: 'owner',
+        workspaceId: workspace.id,
         userId: this.userId,
-        workspaceId: workspace.id
-      });
-
-      // Every new workspace starts with a team of the same name holding its
-      // creator. Workspaces created before teams existed are left without one.
-      const [team] = await tx
-        .insert(workspaceTeams)
-        .values({
-          createdBy: this.userId,
-          identifier: deriveTeamIdentifier(params.name) || DEFAULT_TEAM_IDENTIFIER,
-          name: params.name,
-          workspaceId: workspace.id
-        })
-        .returning({ id: workspaceTeams.id });
-      await tx.insert(workspaceTeamMembers).values({
-        teamId: team.id,
-        userId: this.userId,
-        workspaceId: workspace.id
+        role: 'owner'
       });
 
       return workspace;
     });
   };
 
-  delete = async (id: string) => {
-    // See UserModel.deleteUser: while an agent-TRANSFER backfill still points
-    // at this workspace (as source or target), unmigrated message snapshots
-    // would be cascade-deleted with it. Reject and let the caller retry after
-    // the job drains. Pending `copy` jobs do not block — see
-    // `isPendingTransfer` in agentTransferJob.ts.
-    if (await AgentTransferJobModel.hasPendingJobTouchingWorkspace(this.db, id)) {
-      throw new Error(AGENT_TRANSFER_PENDING_OWNER_DELETE);
-    }
-    return this.db
-      .delete(workspaces)
-      .where(and(eq(workspaces.id, id), eq(workspaces.primaryOwnerId, this.userId)));
-  };
-
-  findById = async (id: string) => {
+  findById = async (id: string): Promise<WorkspaceItem | undefined> => {
     return this.db.query.workspaces.findFirst({
       where: eq(workspaces.id, id)
     });
   };
 
-  findBySlug = async (slug: string) => {
+  findBySlug = async (slug: string): Promise<WorkspaceItem | undefined> => {
     return this.db.query.workspaces.findFirst({
       where: eq(workspaces.slug, slug)
     });
   };
 
-  /**
-   * List ids of workspaces where this user is the primary (Stripe-bound) owner.
-   * Cloud callers combine with subscription-status data to enforce the Free
-   * workspace cap; OSS callers can use the raw count.
-   */
-  listOwnedWorkspaceIds = async (): Promise<string[]> => {
-    const owned = await this.db.query.workspaces.findMany({
-      columns: { id: true },
-      where: eq(workspaces.primaryOwnerId, this.userId)
+  listUserWorkspaces = async (): Promise<WorkspaceItem[]> => {
+    const memberships = await this.db.query.workspaceMembers.findMany({
+      where: and(eq(workspaceMembers.userId, this.userId), isNull(workspaceMembers.deletedAt)),
+      with: {
+        workspace: true
+      }
     });
-    return owned.map((w) => w.id);
-  };
 
-  getSettings = async (id: string) => {
-    const workspace = await this.db.query.workspaces.findFirst({
-      columns: { settings: true },
-      where: eq(workspaces.id, id)
-    });
-    return workspace?.settings ?? {};
-  };
-
-  getApiKeyMemberCreation = async (id: string): Promise<WorkspaceApiKeyMemberCreation> => {
-    return getWorkspaceApiKeyMemberCreation(await this.getSettings(id));
-  };
-
-  getConnectorMemberManage = async (id: string): Promise<WorkspaceConnectorMemberManage> => {
-    return getWorkspaceConnectorMemberManage(await this.getSettings(id));
-  };
-
-  /**
-   * Count every workspace this user belongs to — owned + joined. Reads the
-   * membership table directly because owners are always inserted as members on
-   * `create`, so a single count covers both shapes.
-   */
-  countUserMemberships = async (): Promise<number> => {
-    const result = await this.db
-      .select({ count: count() })
-      .from(workspaceMembers)
-      .where(and(eq(workspaceMembers.userId, this.userId), isNull(workspaceMembers.deletedAt)));
-    return countOf(result, 'the workspace membership count');
-  };
-
-  listUserWorkspaces = async () => {
-    // The inner join pairs each workspace with the caller's (unique) membership row.
-    return this.db
-      .select({ ...getTableColumns(workspaces), role: workspaceMembers.role })
-      .from(workspaceMembers)
-      .innerJoin(workspaces, eq(workspaces.id, workspaceMembers.workspaceId))
-      .where(and(eq(workspaceMembers.userId, this.userId), isNull(workspaceMembers.deletedAt)))
-      .orderBy(desc(workspaces.updatedAt));
+    return memberships.map((m: { workspace: WorkspaceItem }) => m.workspace).filter(Boolean);
   };
 
   update = async (
     id: string,
-    value: Partial<Pick<WorkspaceItem, 'avatar' | 'description' | 'name' | 'slug'>>
-  ) => {
-    return this.db
+    params: Partial<NewWorkspace>
+  ): Promise<WorkspaceItem | undefined> => {
+    const [updated] = await this.db
       .update(workspaces)
-      .set({ ...value, updatedAt: new Date() })
-      .where(eq(workspaces.id, id));
+      .set({ ...params, updatedAt: new Date() })
+      .where(eq(workspaces.id, id))
+      .returning();
+
+    return updated;
   };
 
-  updateSettings = async (id: string, settings: Record<string, any>) => {
-    return this.db
-      .update(workspaces)
-      .set({ settings, updatedAt: new Date() })
-      .where(eq(workspaces.id, id));
+  delete = async (id: string): Promise<void> => {
+    const ws = await this.findById(id);
+    if (!ws) throw new WorkspaceNotFoundError();
+
+    await this.db.delete(workspaces).where(eq(workspaces.id, id));
   };
 
-  updateApiKeyMemberCreation = async (
-    id: string,
-    memberCreation: WorkspaceApiKeyMemberCreation
-  ) => {
-    return this.db
-      .update(workspaces)
-      .set({
-        settings: sql`coalesce(${workspaces.settings}, '{}'::jsonb) || jsonb_build_object(
-          'apiKey',
-          coalesce(${workspaces.settings}->'apiKey', '{}'::jsonb) || jsonb_build_object('memberCreation', ${memberCreation}::text)
-        )`,
-        updatedAt: new Date()
-      })
-      .where(eq(workspaces.id, id));
-  };
-
-  updateConnectorMemberManage = async (
-    id: string,
-    memberManage: WorkspaceConnectorMemberManage
-  ) => {
-    return this.db
-      .update(workspaces)
-      .set({
-        settings: sql`coalesce(${workspaces.settings}, '{}'::jsonb) || jsonb_build_object(
-          'connector',
-          coalesce(${workspaces.settings}->'connector', '{}'::jsonb) || jsonb_build_object('memberManage', ${memberManage}::text)
-        )`,
-        updatedAt: new Date()
-      })
-      .where(eq(workspaces.id, id));
-  };
-
-  /**
-   * Transfer the unique Owner role and Stripe binding to an existing Admin.
-   * The previous Owner becomes Admin in the same transaction, keeping
-   * `primaryOwnerId`, the compatibility membership role, and RBAC in sync.
-   */
-  transferPrimaryOwnership = async (id: string, newPrimaryOwnerUserId: string) => {
-    if (newPrimaryOwnerUserId === this.userId)
-      throw new Error('New owner must be a different user');
-
+  transferPrimaryOwnership = async (
+    workspaceId: string,
+    newOwnerId: string
+  ): Promise<WorkspaceItem> => {
     return this.db.transaction(async (tx) => {
-      const current = await tx.query.workspaces.findFirst({
-        where: eq(workspaces.id, id)
-      });
-
-      if (!current) throw new Error('Workspace not found');
-      if (current.primaryOwnerId !== this.userId)
-        throw new Error('Only the workspace owner can transfer ownership');
-
-      const targetMembership = await tx.query.workspaceMembers.findFirst({
-        where: and(
-          eq(workspaceMembers.workspaceId, id),
-          eq(workspaceMembers.userId, newPrimaryOwnerUserId),
-          isNull(workspaceMembers.deletedAt)
-        )
-      });
-      if (!targetMembership)
-        throw new Error('Target user must already be a member of the workspace');
-      // A legacy non-primary `owner` label counts as Admin everywhere else
-      // (see getActiveMembershipRole) — accept it here too so unconverged
-      // co-owner workspaces can still transfer ownership.
-      if (targetMembership.role !== 'admin' && targetMembership.role !== 'owner')
-        throw new Error('Target user must already be an admin');
-
-      // Compare-and-swap on the still-current owner: two concurrent transfers
-      // both read the same primaryOwnerId above, but only the first one can
-      // match this predicate — the loser aborts before touching any role row.
-      // (The DB-level unique active-owner index ships separately.)
-      const swapped = await tx
+      const [updated] = await tx
         .update(workspaces)
-        .set({ primaryOwnerId: newPrimaryOwnerUserId, updatedAt: new Date() })
-        .where(and(eq(workspaces.id, id), eq(workspaces.primaryOwnerId, this.userId)))
-        .returning({ id: workspaces.id });
-      if (swapped.length === 0) throw new Error('Only the workspace owner can transfer ownership');
+        .set({ primaryOwnerId: newOwnerId, updatedAt: new Date() })
+        .where(eq(workspaces.id, workspaceId))
+        .returning();
 
+      if (!updated) throw new WorkspaceNotFoundError();
+
+      // Ensure new owner has 'owner' role
+      await tx
+        .insert(workspaceMembers)
+        .values({
+          workspaceId,
+          userId: newOwnerId,
+          role: 'owner'
+        })
+        .onConflictDoUpdate({
+          target: [workspaceMembers.workspaceId, workspaceMembers.userId],
+          set: { role: 'owner', updatedAt: new Date(), deletedAt: null }
+        });
+
+      // Demote old owner to 'admin'
       await tx
         .update(workspaceMembers)
-        .set({ role: 'admin' })
-        .where(and(eq(workspaceMembers.workspaceId, id), eq(workspaceMembers.userId, this.userId)));
-      await tx
-        .update(workspaceMembers)
-        .set({ role: 'owner' })
+        .set({ role: 'admin', updatedAt: new Date() })
         .where(
           and(
-            eq(workspaceMembers.workspaceId, id),
-            eq(workspaceMembers.userId, newPrimaryOwnerUserId)
+            eq(workspaceMembers.workspaceId, workspaceId),
+            eq(workspaceMembers.userId, this.userId)
           )
         );
 
-      return {
-        newPrimaryOwnerUserId,
-        previousPrimaryOwnerUserId: this.userId,
-        workspaceId: id
-      };
+      return updated;
     });
-  };
-
-  /**
-   * Downgrade the workspace to Free: clear the grace-period marker so the
-   * workspace is no longer in the cancel-grace window. Members are preserved
-   * — Free supports multiple members, and the billing-inactive lockout (see
-   * `assertSubscriptionActive`) gives view-only access until the owner
-   * renews. Workspace-scoped resources (agents/sessions/etc.) stay attached.
-   */
-  downgradeToFree = async (id: string) => {
-    return this.db.transaction(async (tx) => {
-      const current = await tx.query.workspaces.findFirst({
-        where: eq(workspaces.id, id)
-      });
-
-      if (!current) throw new Error('Workspace not found');
-      if (current.primaryOwnerId !== this.userId)
-        throw new Error('Only the workspace owner can downgrade this workspace');
-
-      const currentSettings = (current.settings as Record<string, any> | null) ?? {};
-      const { gracePeriodUntil: _drop, ...restSettings } = currentSettings;
-
-      const [updated] = await tx
-        .update(workspaces)
-        .set({
-          settings: restSettings,
-          updatedAt: new Date()
-        })
-        .where(eq(workspaces.id, id))
-        .returning();
-
-      return { workspace: updated };
-    });
-  };
-
-  setGracePeriod = async (id: string, gracePeriodUntil: number | null) => {
-    const current = await this.db.query.workspaces.findFirst({
-      columns: { settings: true },
-      where: eq(workspaces.id, id)
-    });
-    if (!current) throw new Error('Workspace not found');
-
-    const prev = (current.settings as Record<string, any> | null) ?? {};
-    const next =
-      gracePeriodUntil === null
-        ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== 'gracePeriodUntil'))
-        : { ...prev, gracePeriodUntil };
-
-    await this.db
-      .update(workspaces)
-      .set({ settings: next, updatedAt: new Date() })
-      .where(eq(workspaces.id, id));
   };
 }

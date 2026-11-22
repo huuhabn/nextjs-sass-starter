@@ -41,7 +41,7 @@ interface SignUpViewProps {
 const signUpSchema = z.object({
   firstName: z.string().min(1, 'Required'),
   lastName: z.string().min(1, 'Required'),
-  email: z.string().min(1, 'Required').email('Invalid email'),
+  email: z.email('Invalid email'),
   password: z.string().min(8, 'At least 8 characters')
 });
 

@@ -2,11 +2,17 @@
   "name": "next-saasstarter",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "cleanup": "node scripts/cleanup.js",
+    "db:migrate": "bun --filter @sass/db db:migrate",
+    "db:studio": "bun --filter @sass/db db:studio",
+    "db:generate": "bun --filter @sass/db db:generate",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint && bun run lint:deprecated",
     "lint:deprecated": "oxlint --type-aware -A all -D typescript/no-deprecated --ignore-pattern 'src/components/ui/**' --ignore-pattern 'src/components/data-table/**' --ignore-pattern 'src/hooks/use-data-table.ts' src",

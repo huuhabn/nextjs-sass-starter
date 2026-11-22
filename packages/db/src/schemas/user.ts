@@ -1,87 +1,50 @@
-import { DEFAULT_PREFERENCE } from '@/const';
-import type { UserAgentOnboarding, UserOnboarding } from '@/types/user';
-import { sql } from 'drizzle-orm';
-import { boolean, index, jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
-import { timestamps, timestamptz } from './_helpers';
+import { DEFAULT_PREFERENCE, type UserPreference } from '@/types';
+import { createdAt, timestamptz, updatedAt } from './_helpers';
 
 export const users = pgTable(
   'users',
   {
     id: text('id').primaryKey().notNull(),
     username: text('username').unique(),
-    email: text('email').unique(),
-    normalizedEmail: text('normalized_email').unique(),
-
+    email: text('email'),
     avatar: text('avatar'),
-    phone: text('phone').unique(),
+    phone: text('phone'),
     firstName: text('first_name'),
     lastName: text('last_name'),
-    fullName: text('full_name'),
-    interests: varchar('interests', { length: 64 }).array(),
-
-    /** @deprecated */
-    isOnboarded: boolean('is_onboarded').default(false),
-    agentOnboarding: jsonb('agent_onboarding').$type<UserAgentOnboarding>(),
-    onboarding: jsonb('onboarding').$type<UserOnboarding>(),
-    // Time user was created in Clerk
+    isOnboarded: boolean('is_onboarded').default(false).notNull(),
     clerkCreatedAt: timestamptz('clerk_created_at'),
-
-    // Required by better-auth
-    emailVerified: boolean('email_verified').default(false).notNull(),
-    // Required by nextauth, all null allowed
-    emailVerifiedAt: timestamptz('email_verified_at'),
-
-    preference: jsonb('preference').$defaultFn(() => DEFAULT_PREFERENCE),
-
-    // better-auth admin
-    role: text('role'),
-    banned: boolean('banned').default(false),
-    banReason: text('ban_reason'),
-    banExpires: timestamptz('ban_expires'),
-
-    // better-auth two-factor
-    twoFactorEnabled: boolean('two_factor_enabled').default(false),
-
-    // better-auth phone number
-    phoneNumberVerified: boolean('phone_number_verified'),
-    lastActiveAt: timestamptz('last_active_at').notNull().defaultNow(),
-
-    ...timestamps
+    preference: jsonb('preference').$type<UserPreference>().default(DEFAULT_PREFERENCE),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    key: text('key')
   },
-  (table) => [
-    index('users_email_idx').on(table.email),
-    index('users_username_idx').on(table.username),
-    index('users_created_at_idx').on(table.createdAt),
-    /**
-     * Partial index to speed up admin queries on banned users.
-     * Only rows with banned=true are indexed.
-     */
-    index('users_banned_true_created_at_idx')
-      .on(table.createdAt)
-      .where(sql`${table.banned} = true`)
-  ]
+  (t) => [index('users_email_idx').on(t.email)]
 );
-
-export type NewUser = typeof users.$inferInsert;
-export type UserItem = typeof users.$inferSelect;
 
 export const userSettings = pgTable('user_settings', {
   id: text('id')
-    .references(() => users.id, { onDelete: 'cascade' })
-    .primaryKey(),
-
+    .primaryKey()
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   tts: jsonb('tts'),
-  hotkey: jsonb('hotkey'),
   keyVaults: text('key_vaults'),
   general: jsonb('general'),
   languageModel: jsonb('language_model'),
   systemAgent: jsonb('system_agent'),
   defaultAgent: jsonb('default_agent'),
-  market: jsonb('market'),
-  memory: jsonb('memory'),
   tool: jsonb('tool'),
-  image: jsonb('image'),
   notification: jsonb('notification')
 });
+
+export const insertUserSchema = createInsertSchema(users);
+export const selectUserSchema = createSelectSchema(users);
+export type UserItem = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
+export const insertUserSettingsSchema = createInsertSchema(userSettings);
+export const selectUserSettingsSchema = createSelectSchema(userSettings);
 export type UserSettingsItem = typeof userSettings.$inferSelect;
+export type NewUserSettings = typeof userSettings.$inferInsert;

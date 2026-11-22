@@ -5,21 +5,14 @@
       "idx": 0,
       "version": "6",
       "when": 1716982944425,
-      "tag": "0000_init",
+      "tag": "0000_base_tables",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "6",
       "when": 1717153686544,
-      "tag": "0001_create_workspace",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1717497456164,
-      "tag": "0002_add_rbac_tables",
+      "tag": "0001_saas_extensions",
       "breakpoints": true
     }
   ],

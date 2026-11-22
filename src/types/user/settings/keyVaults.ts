@@ -11,9 +11,7 @@ export interface AzureOpenAIKeyVault {
   apiKey?: string;
   apiVersion?: string;
   baseURL?: string;
-  /**
-   * @deprecated
-   */
+
   endpoint?: string;
 }
 
@@ -35,16 +33,11 @@ export interface CloudflareKeyVault {
   baseURLOrAccountID?: string;
 }
 
-/**
- * Doubao Speech (Volcengine speech synthesis): an API key from the new speech console, or
- * the legacy console's App ID + Access Token.
- */
 export interface DoubaoSpeechKeyVault {
-  /** Legacy console Access Token, sent as `X-Api-Access-Key` with `appId`. */
   accessToken?: string;
-  /** New-console API key, sent as `X-Api-Key`. */
+
   apiKey?: string;
-  /** Legacy console App ID, sent as `X-Api-App-Id` with `accessToken`. */
+
   appId?: string;
   baseURL?: string;
 }
@@ -59,36 +52,20 @@ export interface ComfyUIKeyVault {
 }
 
 export interface GithubCopilotKeyVault {
-  /**
-   * Traditional PAT (Personal Access Token)
-   */
   apiKey?: string;
-  /**
-   * Provider-specific bearer token (Copilot API token)
-   */
+
   bearerToken?: string;
-  /**
-   * Bearer token expiration timestamp (ms)
-   */
+
   bearerTokenExpiresAt?: string;
-  /**
-   * OAuth access token (e.g., GitHub's ghu_xxx)
-   */
+
   oauthAccessToken?: string;
 }
 
 export interface SuperGrokKeyVault {
-  /**
-   * xAI OAuth access token (JWT, ~1h lifetime)
-   */
   oauthAccessToken?: string;
-  /**
-   * xAI OAuth refresh token. Rotates on every refresh — single use.
-   */
+
   oauthRefreshToken?: string;
-  /**
-   * Access token expiration timestamp (ms)
-   */
+
   oauthTokenExpiresAt?: string;
 }
 

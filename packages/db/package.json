@@ -2,39 +2,36 @@
   "name": "@sass/db",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schemas": "./src/schemas/index.ts",
-    "./test-utils": "./tests/test-utils.ts"
+    "./schemas": "./src/schemas/index.ts"
   },
   "scripts": {
-    "test": "npm run test:client-db && npm run test:server-db",
-    "test:client-db": "vitest run --silent='passed-only'",
-    "test:coverage": "vitest --coverage --silent='passed-only' --config vitest.config.server.mts",
-    "test:server-db": "vitest run --config vitest.config.server.mts"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:migrate": "bun run src/scripts/migrate.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@lobechat/const": "workspace:*",
-    "@lobechat/types": "workspace:*",
-    "@lobechat/utils": "workspace:*",
-    "p-map": "^7.0.6",
-    "random-words": "^2.0.1",
-    "remove-markdown": "^0.6.4",
-    "ts-md5": "^2.0.1",
-    "type-fest": "^5.7.0",
-    "ws": "^8.21.0"
+    "@neondatabase/serverless": "^0.10.4",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.1",
+    "drizzle-zod": "^0.8.3",
+    "nanoid": "^5.1.5",
+    "pg": "^8.13.3",
+    "ws": "^8.18.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",
-    "dotenv": "^17.4.2",
-    "fake-indexeddb": "^6.2.5"
-  },
-  "peerDependencies": {
-    "dayjs": "*",
-    "drizzle-orm": "*",
-    "drizzle-zod": "^0.8.3",
-    "nanoid": "*",
-    "pg": "*",
-    "zod": "^4.4.3"
+    "@types/node": "24.19.2",
+    "@types/pg": "^8.11.11",
+    "@types/ws": "^8.5.14",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "7.0.2",
+    "vitest": "^3.0.8"
   }
 }

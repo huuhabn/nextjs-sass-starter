@@ -1,20 +1,3 @@
-export interface ApiKeyItem {
-  accessedAt: Date;
-  createdAt: Date;
-  creator?: string | null;
-  enabled?: boolean | null;
-  expiresAt?: Date | null;
-  id: string;
-  isMine?: boolean;
-  key: string;
-  keyDecryptionFailed?: boolean;
-  lastUsedAt?: Date | null;
-  name: string;
-  scopes?: string[] | null;
-  updatedAt: Date;
-  userId: string;
-}
-
 export interface CreateApiKeyParams {
   expiresAt?: Date | null;
   name: string;

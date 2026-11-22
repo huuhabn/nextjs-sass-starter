@@ -171,9 +171,6 @@ export interface UserAgentOnboardingDraft {
   workStyle?: Partial<UserOnboardingDimensionWorkStyle>;
 }
 
-// LLMs often emit "" for tool-call fields they have no value for. Treat empty/
-// whitespace strings as missing so partial saveUserQuestion calls pass validation;
-// OnboardingService.saveUserQuestion already ignores empty strings downstream.
 const OptionalTrimmedNonEmptyStringSchema = z
   .string()
   .trim()
@@ -228,6 +225,6 @@ export const UserAgentOnboardingSchema = z
 export const UserAgentOnboardingUpdateSchema = z
   .object({
     node: UserAgentOnboardingNodeSchema,
-    patch: z.object({}).passthrough()
+    patch: z.looseObject({})
   })
   .strict();

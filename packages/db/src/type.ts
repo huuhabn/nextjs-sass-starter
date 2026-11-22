@@ -1,9 +1,11 @@
-import type { NeonDatabase } from 'drizzle-orm/neon-serverless';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 
 import type * as schema from './schemas';
 
-export type LobeChatDatabaseSchema = typeof schema;
+export type AppDatabaseSchema = typeof schema;
+export type DatabaseSchema = AppDatabaseSchema;
 
-export type LobeChatDatabase = NeonDatabase<LobeChatDatabaseSchema>;
+export type AppDatabase = PgDatabase<any, AppDatabaseSchema>;
+export type Database = AppDatabase;
 
-export type Transaction = Parameters<Parameters<LobeChatDatabase['transaction']>[0]>[0];
+export type Transaction = Parameters<Parameters<AppDatabase['transaction']>[0]>[0];

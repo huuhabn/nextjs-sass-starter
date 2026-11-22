@@ -10,7 +10,7 @@ export async function loadI18nResource(language: string, namespace: string) {
   const locale = normalizeLocale(language);
   const load = loaders[`./resources/${locale}.ts`];
   if (!load) throw new Error(`Unsupported locale: ${locale}`);
-  const module = await load();
-  const resource = await module.loadResource(namespace);
+  const mod = await load();
+  const resource = await mod.loadResource(namespace);
   return resource.default;
 }

@@ -4,13 +4,9 @@ import type { FileParsingTask } from '../asyncTask';
 
 export interface FileUploadState {
   progress: number;
-  /**
-   * rest time in s
-   */
+
   restTime: number;
-  /**
-   * upload speed in Byte/s
-   */
+
   speed: number;
 }
 
@@ -36,7 +32,6 @@ export interface VoiceMessageRecording {
   waveform: number[];
 }
 
-// the file that is upload at chat page
 export interface UploadFileItem {
   abortController?: AbortController;
   agentId?: string;
@@ -90,7 +85,6 @@ export const agentShareFileAccessScope = (
   visitorUserId: provenance.visitorUserId
 });
 
-/** Remove server-owned Agent Share provenance from caller-supplied metadata. */
 export const stripAgentShareFileProvenance = <T>(metadata: T): T => {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return metadata;
 
@@ -99,7 +93,6 @@ export const stripAgentShareFileProvenance = <T>(metadata: T): T => {
   ) as T;
 };
 
-/** Read server-written agent-share provenance without trusting the rest of the JSON metadata. */
 export const getAgentShareFileProvenance = (
   metadata: unknown
 ): AgentShareFileProvenance | undefined => {
