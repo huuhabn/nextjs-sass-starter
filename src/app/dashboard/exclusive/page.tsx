@@ -1,7 +1,7 @@
-import { auth } from '@clerk/nextjs/server';
+import { requireAuth } from '@/lib/auth-server';
 import ExclusiveView from './exclusive-view';
 
 export default async function Page() {
-  await auth.protect();
+  await requireAuth();
   return <ExclusiveView />;
 }

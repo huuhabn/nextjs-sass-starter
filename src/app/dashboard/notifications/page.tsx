@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server';
+import { requireAuth } from '@/lib/auth-server';
 import NotificationsPage from '@/features/notifications/components/notifications-page';
 
 export const metadata = {
@@ -6,7 +6,7 @@ export const metadata = {
 };
 
 export default async function Page() {
-  await auth.protect();
+  await requireAuth();
 
   return <NotificationsPage />;
 }

@@ -1,6 +1,7 @@
 import { relations } from 'drizzle-orm';
 
 import { apiKeys } from './apiKey';
+import { accounts, authSessions, passkey, twoFactor } from './betterAuth';
 import { invoices, subscriptions, userUsageQuotas } from './billing';
 import { files } from './file';
 import { notificationDeliveries, notifications } from './notification';
@@ -29,7 +30,11 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   apiKeys: many(apiKeys),
   subscriptions: many(subscriptions),
   invoices: many(invoices),
-  usageQuotas: many(userUsageQuotas)
+  usageQuotas: many(userUsageQuotas),
+  authSessions: many(authSessions),
+  accounts: many(accounts),
+  twoFactor: one(twoFactor),
+  passkeys: many(passkey)
 }));
 
 export const userSettingsRelations = relations(userSettings, ({ one }) => ({
@@ -179,6 +184,34 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
 export const userUsageQuotasRelations = relations(userUsageQuotas, ({ one }) => ({
   user: one(users, {
     fields: [userUsageQuotas.userId],
+    references: [users.id]
+  })
+}));
+
+export const authSessionsRelations = relations(authSessions, ({ one }) => ({
+  user: one(users, {
+    fields: [authSessions.userId],
+    references: [users.id]
+  })
+}));
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, {
+    fields: [accounts.userId],
+    references: [users.id]
+  })
+}));
+
+export const twoFactorRelations = relations(twoFactor, ({ one }) => ({
+  user: one(users, {
+    fields: [twoFactor.userId],
+    references: [users.id]
+  })
+}));
+
+export const passkeyRelations = relations(passkey, ({ one }) => ({
+  user: one(users, {
+    fields: [passkey.userId],
     references: [users.id]
   })
 }));

@@ -1,5 +1,6 @@
 export * from './_helpers';
 export * from './apiKey';
+export * from './betterAuth';
 export * from './billing';
 export * from './file';
 export * from './notification';

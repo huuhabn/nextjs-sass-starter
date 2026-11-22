@@ -1,8 +1,8 @@
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { SignUp as ClerkSignUpForm } from '@clerk/nextjs';
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { BetterAuthSignUp } from './better-auth-signup';
 import { InteractiveGridPattern } from './interactive-grid';
 
 export const metadata: Metadata = {
@@ -57,7 +57,7 @@ export default function SignUpViewPage() {
       </div>
       <div className='flex h-full items-center justify-center p-4 lg:p-8'>
         <div className='flex w-full max-w-md flex-col items-center justify-center space-y-6'>
-          <ClerkSignUpForm />
+          <BetterAuthSignUp />
         </div>
       </div>
     </div>

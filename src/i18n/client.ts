@@ -11,10 +11,13 @@ import {
   supportedLocales,
   type Locale
 } from './locale';
+import arAuth from './locales/ar-TN/auth.json';
+import enAuth from './locales/en-US/auth.json';
+import viAuth from './locales/vi-VN/auth.json';
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
-export const initialNamespaces = ['common', 'layout', 'navigation', 'platform'] as const;
+export const initialNamespaces = ['common', 'auth', 'nav', 'account', 'app', 'onboarding'] as const;
 
 export function getSavedLocale(): Locale {
   if (typeof document === 'undefined') return defaultLocale;
@@ -44,8 +47,13 @@ export const i18nReady = i18n
     fallbackLng: defaultLocale,
     supportedLngs: [...supportedLocales],
     load: 'currentOnly',
-    defaultNS: 'platform',
+    defaultNS: 'auth',
     ns: [...initialNamespaces],
+    resources: {
+      'vi-VN': { auth: viAuth },
+      'en-US': { auth: enAuth },
+      'ar-TN': { auth: arAuth }
+    },
     keySeparator: false,
     interpolation: { escapeValue: false },
     partialBundledLanguages: true,

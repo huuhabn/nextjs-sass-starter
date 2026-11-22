@@ -6,6 +6,7 @@ import ThemeProvider from '@/components/themes/theme-provider';
 import { cn } from '@/lib/utils';
 import type { Metadata, Viewport } from 'next';
 import { cookies, headers } from 'next/headers';
+import Script from 'next/script';
 import NextTopLoader from 'nextjs-toploader';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { directionForLocale, LOCALE_COOKIE_NAME, normalizeLocale } from '@/i18n/locale';
@@ -51,7 +52,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: META_THEME_COLORS.light
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: META_THEME_COLORS.light },
+    { media: '(prefers-color-scheme: dark)', color: META_THEME_COLORS.dark }
+  ]
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -67,12 +71,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={activeLocale} dir={activeDir} suppressHydrationWarning data-theme={themeToApply}>
-      <head>
-        <script
+      <body
+        className={cn(
+          'bg-background overflow-x-hidden overscroll-none font-sans antialiased',
+          fontVariables
+        )}
+      >
+        <Script
+          id='theme-color-script'
+          strategy='beforeInteractive'
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                // Set meta theme color
                 if (localStorage.theme === 'dark' || ((!('theme' in localStorage) || localStorage.theme === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '${META_THEME_COLORS.dark}')
                 }
@@ -80,13 +90,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             `
           }}
         />
-      </head>
-      <body
-        className={cn(
-          'bg-background overflow-x-hidden overscroll-none font-sans antialiased',
-          fontVariables
-        )}
-      >
         <NextTopLoader color='var(--primary)' showSpinner={false} />
         <NuqsAdapter>
           <ThemeProvider
@@ -96,7 +99,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             disableTransitionOnChange
             enableColorScheme
           >
-            <Providers activeThemeValue={themeToApply}>
+            <Providers activeThemeValue={themeToApply} locale={activeLocale}>
               <Toaster />
               {children}
             </Providers>

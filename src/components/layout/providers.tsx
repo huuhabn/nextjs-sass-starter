@@ -1,40 +1,34 @@
 'use client';
-import { ClerkProvider } from '@clerk/nextjs';
+
 import React from 'react';
+import { I18nextProvider } from 'react-i18next';
+import i18n from '@/i18n/client';
 import { ActiveThemeProvider } from '../themes/active-theme';
 import QueryProvider from './query-provider';
+import { WorkspaceProvider } from '@/lib/workspace-context';
 
 export default function Providers({
   activeThemeValue,
+  locale,
   children
 }: {
   activeThemeValue: string;
+  locale?: string;
   children: React.ReactNode;
 }) {
+  React.useEffect(() => {
+    if (locale && i18n.language !== locale) {
+      void i18n.changeLanguage(locale);
+    }
+  }, [locale]);
+
   return (
-    <>
+    <I18nextProvider i18n={i18n}>
       <ActiveThemeProvider initialTheme={activeThemeValue}>
-        <ClerkProvider
-          appearance={{
-            variables: {
-              colorPrimary: 'var(--primary)',
-              colorPrimaryForeground: 'var(--primary-foreground)',
-              colorDanger: 'var(--destructive)',
-              colorBackground: 'var(--card)',
-              colorForeground: 'var(--foreground)',
-              colorMuted: 'var(--muted)',
-              colorMutedForeground: 'var(--muted-foreground)',
-              colorInput: 'var(--input)',
-              colorInputForeground: 'var(--foreground)',
-              colorBorder: 'var(--border)',
-              colorRing: 'var(--ring)',
-              fontFamily: 'var(--font-sans)'
-            }
-          }}
-        >
+        <WorkspaceProvider>
           <QueryProvider>{children}</QueryProvider>
-        </ClerkProvider>
+        </WorkspaceProvider>
       </ActiveThemeProvider>
-    </>
+    </I18nextProvider>
   );
 }

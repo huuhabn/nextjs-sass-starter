@@ -27,7 +27,8 @@ import {
 } from '@/components/ui/sidebar';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navGroups } from '@/config/nav-config';
-import { useClerk, useOrganization, useUser } from '@clerk/nextjs';
+import { authClient } from '@/lib/auth-client';
+import { useWorkspace } from '@/lib/workspace-context';
 import { useFilteredNavGroups } from '@/hooks/use-nav';
 import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
@@ -234,12 +235,17 @@ function NavMainItem({ item, pathname }: { item: NavItem; pathname: string }) {
 }
 
 function NavUser() {
-  const { user } = useUser();
-  const { organization } = useOrganization();
-  const { signOut } = useClerk();
+  const { data: session } = authClient.useSession();
+  const { activeWorkspace } = useWorkspace();
+  const user = session?.user;
   const router = useRouter();
   const { isMobile, state } = useSidebar();
   const railMenu = state === 'collapsed' && !isMobile;
+
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    router.push('/sign-in');
+  };
 
   return (
     <SidebarMenu>
@@ -256,9 +262,6 @@ function NavUser() {
             {user && <UserAvatarProfile className='size-8 rounded-lg' showInfo user={user} />}
             <Icons.chevronsUpDown className='text-muted-foreground ml-auto size-4' />
           </DropdownMenuTrigger>
-          {/* Desktop: opens to the right, bottom edge aligned with the content panel
-              (alignOffset -8); 8px gap when expanded, 16px off the icon rail.
-              Mobile: opens upwards inside the sheet. */}
           <DropdownMenuContent
             className={isMobile ? 'w-(--anchor-width) min-w-60' : 'w-64'}
             side={isMobile ? 'top' : 'right'}
@@ -277,7 +280,7 @@ function NavUser() {
                 <Icons.account />
                 Profile
               </DropdownMenuItem>
-              {organization && (
+              {activeWorkspace && (
                 <DropdownMenuItem onClick={() => router.push('/dashboard/billing')}>
                   <Icons.creditCard />
                   Billing
@@ -290,7 +293,7 @@ function NavUser() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => signOut({ redirectUrl: '/auth/sign-in' })}>
+              <DropdownMenuItem onClick={handleSignOut}>
                 <Icons.logout aria-hidden />
                 Sign out
               </DropdownMenuItem>

@@ -1,9 +1,7 @@
-import { auth } from '@clerk/nextjs/server';
+import { requireAuth } from '@/lib/auth-server';
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { createServerI18n } from '@/i18n/server';
-
 import { getLocalePath } from '@/i18n/locale';
 
 type DashboardLayoutProps = {
@@ -24,8 +22,7 @@ export async function generateMetadata(props: DashboardLayoutProps): Promise<Met
 export default async function LocaleDashboardLayout(props: DashboardLayoutProps) {
   const { locale } = await props.params;
 
-  const { userId } = await auth();
-  if (!userId) redirect(getLocalePath('/signin', locale));
+  await requireAuth(getLocalePath('/sign-in', locale));
 
   const { t } = await createServerI18n(locale);
 

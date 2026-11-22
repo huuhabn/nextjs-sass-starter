@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server';
+import { requireAuth } from '@/lib/auth-server';
 import KanbanViewPage from '@/features/kanban/components/kanban-view-page';
 
 export const metadata = {
@@ -6,7 +6,7 @@ export const metadata = {
 };
 
 export default async function page() {
-  await auth.protect();
+  await requireAuth();
 
   return <KanbanViewPage />;
 }

@@ -1,9 +1,9 @@
-import { auth } from '@clerk/nextjs/server';
+import { requireAuth } from '@/lib/auth-server';
 import { delay } from '@/const/mock-api';
 import { AreaGraph } from '@/features/overview/components/area-graph';
 
 export default async function AreaStats() {
-  await auth.protect();
+  await requireAuth();
 
   await delay(2000);
   return <AreaGraph />;

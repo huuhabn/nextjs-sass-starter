@@ -1,7 +1,7 @@
-import { clerkMiddleware } from '@clerk/nextjs/server';
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import {
   defaultLocale,
+  getLocalePath,
   LOCALE_COOKIE_NAME,
   normalizeLocale,
   supportedLocales
@@ -10,10 +10,24 @@ import {
 // Routes to bypass from i18n URL rewriting
 const IGNORED_PATHS = ['/api', '/trpc', '/monitoring', '/auth'];
 
-// Each /dashboard page and API route checks auth itself (`auth.protect()` / `auth()`).
-// clerkMiddleware() attaches the auth context to every request and handles clean i18n routing.
-export default clerkMiddleware(async (_auth, req) => {
+export default async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Check authentication for protected routes (/dashboard/*)
+  if (pathname.startsWith('/dashboard')) {
+    const sessionToken =
+      req.cookies.get('better-auth.session_token')?.value ||
+      req.cookies.get('__Secure-better-auth.session_token')?.value;
+
+    if (!sessionToken) {
+      const signInUrl = req.nextUrl.clone();
+      const cookieLocale = req.cookies.get(LOCALE_COOKIE_NAME)?.value;
+      const resolvedLocale = normalizeLocale(cookieLocale || defaultLocale);
+      signInUrl.pathname = getLocalePath('/sign-in', resolvedLocale);
+      signInUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+  }
 
   // Bypass system routes
   if (IGNORED_PATHS.some((path) => pathname.startsWith(path))) {
@@ -60,7 +74,7 @@ export default clerkMiddleware(async (_auth, req) => {
   const url = req.nextUrl.clone();
   url.pathname = `/${defaultLocale}${pathname}`;
   return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
-});
+}
 
 export const config = {
   matcher: [

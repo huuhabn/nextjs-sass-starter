@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server';
+import { requireAuth } from '@/lib/auth-server';
 import PageContainer from '@/components/layout/page-container';
 import { AiChatDemo } from '@/features/ai-chat/components/ai-chat-demo';
 
@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 export default async function Page() {
-  await auth.protect();
+  await requireAuth();
 
   return (
     <PageContainer>
