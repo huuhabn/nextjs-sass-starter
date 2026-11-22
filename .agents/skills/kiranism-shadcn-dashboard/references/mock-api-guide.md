@@ -215,7 +215,7 @@ mock-api-orders.ts  →  api/service.ts  →  api/queries.ts  →  components
 **service.ts** imports from the mock API:
 
 ```tsx
-import { fakeOrders } from '@/constants/mock-api-orders';
+import { fakeOrders } from '@/const/mock-api-orders';
 import type { OrderFilters, OrdersResponse } from './types';
 
 export async function getOrders(filters: OrderFilters): Promise<OrdersResponse> {

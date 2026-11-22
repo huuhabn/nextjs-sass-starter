@@ -27,7 +27,7 @@
 // Current: Mock (in-memory fake data for demo/prototyping)
 // ============================================================
 
-import { fakeProducts } from '@/constants/mock-api';
+import { fakeProducts } from '@/const/mock-api';
 import type {
   ProductFilters,
   ProductsResponse,

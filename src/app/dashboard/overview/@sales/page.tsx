@@ -1,5 +1,5 @@
 import { auth } from '@clerk/nextjs/server';
-import { delay } from '@/constants/mock-api';
+import { delay } from '@/const/mock-api';
 import { RecentSales } from '@/features/overview/components/recent-sales';
 
 export default async function Sales() {

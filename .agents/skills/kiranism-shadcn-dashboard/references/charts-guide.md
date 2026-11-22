@@ -102,7 +102,7 @@ export default function OverviewLayout({
 Each slot is an async server component that fetches data then renders the chart:
 
 ```tsx
-import { delay } from '@/constants/mock-api';
+import { delay } from '@/const/mock-api';
 import { AreaGraph } from '@/features/overview/components/area-graph';
 
 export default async function AreaStatsPage() {

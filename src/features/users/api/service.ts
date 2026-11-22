@@ -27,7 +27,7 @@
 // Current: Mock (in-memory fake data for demo/prototyping)
 // ============================================================
 
-import { fakeUsers } from '@/constants/mock-api-users';
+import { fakeUsers } from '@/const/mock-api-users';
 import type { UserFilters, UsersResponse, UserMutationPayload } from './types';
 
 export async function getUsers(filters: UserFilters): Promise<UsersResponse> {

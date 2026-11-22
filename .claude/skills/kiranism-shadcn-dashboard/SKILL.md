@@ -53,7 +53,7 @@ Define reusable query options shared between server prefetch and client hooks:
 
 ```tsx
 import { queryOptions } from '@tanstack/react-query';
-import { fakeEntities, type Entity } from '@/constants/mock-api-entities';
+import { fakeEntities, type Entity } from '@/const/mock-api-entities';
 
 export type { Entity };
 

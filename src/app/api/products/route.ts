@@ -15,7 +15,7 @@
 // Current: Mock (in-memory fake data for demo/prototyping)
 // ============================================================
 
-import { fakeProducts } from '@/constants/mock-api';
+import { fakeProducts } from '@/const/mock-api';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 

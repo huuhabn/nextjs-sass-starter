@@ -87,7 +87,7 @@ Each feature has 4 API files: **types** → **service** → **queries** → **mu
 **Types** (`api/types.ts`) — re-export the entity type from mock API, plus filter/response/payload types:
 
 ```tsx
-export type { Order } from '@/constants/mock-api-orders';
+export type { Order } from '@/const/mock-api-orders';
 export type OrderFilters = { page?: number; limit?: number; search?: string; sort?: string };
 export type OrdersResponse = { items: Order[]; total_items: number };
 export type OrderMutationPayload = { customer: string; status: string; total: number };
@@ -96,7 +96,7 @@ export type OrderMutationPayload = { customer: string; status: string; total: nu
 **Service** (`api/service.ts`) — data access layer. One exported function per operation:
 
 ```tsx
-import { fakeOrders } from '@/constants/mock-api-orders';
+import { fakeOrders } from '@/const/mock-api-orders';
 import type { OrderFilters, OrdersResponse, OrderMutationPayload } from './types';
 
 export async function getOrders(filters: OrderFilters): Promise<OrdersResponse> {

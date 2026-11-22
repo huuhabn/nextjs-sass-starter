@@ -1,5 +1,5 @@
 import { auth } from '@clerk/nextjs/server';
-import { delay } from '@/constants/mock-api';
+import { delay } from '@/const/mock-api';
 import { AreaGraph } from '@/features/overview/components/area-graph';
 
 export default async function AreaStats() {
