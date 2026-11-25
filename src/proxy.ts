@@ -10,11 +10,22 @@ import {
 // Routes to bypass from i18n URL rewriting
 const IGNORED_PATHS = ['/api', '/trpc', '/monitoring', '/auth'];
 
+function isProtectedPath(path: string) {
+  let clean = path;
+  for (const loc of supportedLocales) {
+    if (clean === `/${loc}` || clean.startsWith(`/${loc}/`)) {
+      clean = clean.slice(`/${loc}`.length) || '/';
+      break;
+    }
+  }
+  return clean === '/' || clean.startsWith('/dashboard') || clean === '/overview';
+}
+
 export default async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Check authentication for protected routes (/dashboard/*)
-  if (pathname.startsWith('/dashboard')) {
+  // Check authentication for protected routes (/, /overview, /dashboard/*)
+  if (isProtectedPath(pathname)) {
     const sessionToken =
       req.cookies.get('better-auth.session_token')?.value ||
       req.cookies.get('__Secure-better-auth.session_token')?.value;

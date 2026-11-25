@@ -7,7 +7,8 @@ import {
   DIRECTION_COOKIE_NAME,
   directionForLocale,
   LOCALE_COOKIE_NAME,
-  normalizeLocale
+  normalizeLocale,
+  switchLocalePath
 } from './locale';
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 năm
@@ -38,36 +39,12 @@ export async function setLocaleAction(locale: string): Promise<void> {
   const headerStore = await headers();
   const referer = headerStore.get('referer') ?? '';
 
-  let newPath = next === defaultLocale ? '/dashboard' : `/${next}/dashboard`;
+  let newPath = next === defaultLocale ? '/' : `/${next}`;
 
   if (referer) {
     try {
       const url = new URL(referer);
-      const pathParts = url.pathname.split('/').filter(Boolean);
-
-      // Kiểm tra nếu phần đầu là locale prefix (dạng xx-XX)
-      const localePattern = /^[a-z]{2}-[A-Z]{2}$/;
-      const hasLocalePrefix = pathParts.length > 0 && localePattern.test(pathParts[0]);
-
-      if (next === defaultLocale) {
-        // Ngôn ngữ mặc định: bỏ prefix khỏi URL
-        if (hasLocalePrefix) {
-          pathParts.shift();
-        }
-        newPath = '/' + pathParts.join('/');
-      } else {
-        // Ngôn ngữ phụ: thêm hoặc thay thế prefix
-        if (hasLocalePrefix) {
-          pathParts[0] = next;
-        } else {
-          pathParts.unshift(next);
-        }
-        newPath = '/' + pathParts.join('/');
-      }
-
-      if (!newPath || newPath === '') {
-        newPath = '/';
-      }
+      newPath = switchLocalePath(url.pathname, next) + (url.search || '');
     } catch {
       // referer không parse được → dùng default
     }

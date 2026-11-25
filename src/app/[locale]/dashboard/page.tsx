@@ -3,5 +3,5 @@ import { redirect } from 'next/navigation';
 
 export default async function Dashboard() {
   await requireAuth();
-  redirect('/dashboard/overview');
+  redirect('/');
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
 
 export interface Workspace {
   id: string;
@@ -41,38 +41,60 @@ interface WorkspaceContextValue {
 
 const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
 
-function getInitialWorkspaces(): Workspace[] {
-  if (typeof window === 'undefined') return DEFAULT_WORKSPACES;
-  try {
-    const savedList = localStorage.getItem('workspaces_list');
-    if (savedList) return JSON.parse(savedList);
-  } catch {}
-  return DEFAULT_WORKSPACES;
+function subscribe(callback: () => void) {
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
 }
 
-function getInitialActiveWorkspace(list: Workspace[]): Workspace | null {
-  if (typeof window === 'undefined') return list[0] || null;
+function getWorkspacesSnapshot(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('workspaces_list') || '';
+}
+
+function getActiveWorkspaceIdSnapshot(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('active_workspace_id') || '';
+}
+
+function getServerSnapshot(): string {
+  return '';
+}
+
+function setActiveWorkspace(ws: Workspace) {
   try {
-    const savedId = localStorage.getItem('active_workspace_id');
-    const match = list.find((w) => w.id === savedId);
-    if (match) return match;
+    localStorage.setItem('active_workspace_id', ws.id);
+    window.dispatchEvent(new Event('storage'));
   } catch {}
-  return list[0] || null;
 }
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(getInitialWorkspaces);
-  const [activeWorkspace, setActiveWorkspaceState] = useState<Workspace | null>(() =>
-    getInitialActiveWorkspace(workspaces)
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
   );
-  const [isLoaded] = useState(true);
 
-  const setActiveWorkspace = (ws: Workspace) => {
-    setActiveWorkspaceState(ws);
+  const workspacesRaw = useSyncExternalStore(subscribe, getWorkspacesSnapshot, getServerSnapshot);
+  const activeIdRaw = useSyncExternalStore(
+    subscribe,
+    getActiveWorkspaceIdSnapshot,
+    getServerSnapshot
+  );
+
+  const workspaces = useMemo(() => {
+    if (!isMounted || !workspacesRaw) return DEFAULT_WORKSPACES;
     try {
-      localStorage.setItem('active_workspace_id', ws.id);
-    } catch {}
-  };
+      return (JSON.parse(workspacesRaw) as Workspace[]) || DEFAULT_WORKSPACES;
+    } catch {
+      return DEFAULT_WORKSPACES;
+    }
+  }, [isMounted, workspacesRaw]);
+
+  const activeWorkspace = useMemo(() => {
+    if (!isMounted) return DEFAULT_WORKSPACES[0];
+    if (!activeIdRaw) return workspaces[0] || null;
+    return workspaces.find((w) => w.id === activeIdRaw) || workspaces[0] || null;
+  }, [isMounted, activeIdRaw, workspaces]);
 
   const createWorkspace = (name: string): Workspace => {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -85,10 +107,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       membersCount: 1
     };
     const updated = [...workspaces, newWs];
-    setWorkspaces(updated);
-    setActiveWorkspace(newWs);
     try {
       localStorage.setItem('workspaces_list', JSON.stringify(updated));
+      localStorage.setItem('active_workspace_id', newWs.id);
+      window.dispatchEvent(new Event('storage'));
     } catch {}
     return newWs;
   };
@@ -100,7 +122,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         activeWorkspace,
         setActiveWorkspace,
         createWorkspace,
-        isLoaded
+        isLoaded: isMounted
       }}
     >
       {children}

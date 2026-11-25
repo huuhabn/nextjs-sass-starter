@@ -45,7 +45,7 @@ export function BetterAuthSignIn({ locale }: BetterAuthSignInProps) {
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawCallbackUrl = searchParams.get('callbackUrl') || '/dashboard/overview';
+  const rawCallbackUrl = searchParams.get('callbackUrl') || '/';
   const callbackUrl =
     rawCallbackUrl.startsWith('/') && !rawCallbackUrl.startsWith(`/${locale}`)
       ? getLocalePath(rawCallbackUrl, locale)

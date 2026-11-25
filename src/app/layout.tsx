@@ -6,7 +6,6 @@ import ThemeProvider from '@/components/themes/theme-provider';
 import { cn } from '@/lib/utils';
 import type { Metadata, Viewport } from 'next';
 import { cookies, headers } from 'next/headers';
-import Script from 'next/script';
 import NextTopLoader from 'nextjs-toploader';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { directionForLocale, LOCALE_COOKIE_NAME, normalizeLocale } from '@/i18n/locale';
@@ -71,15 +70,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={activeLocale} dir={activeDir} suppressHydrationWarning data-theme={themeToApply}>
-      <body
-        className={cn(
-          'bg-background overflow-x-hidden overscroll-none font-sans antialiased',
-          fontVariables
-        )}
-      >
-        <Script
+      <head>
+        <script
           id='theme-color-script'
-          strategy='beforeInteractive'
           dangerouslySetInnerHTML={{
             __html: `
               try {
@@ -90,6 +83,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             `
           }}
         />
+      </head>
+      <body
+        className={cn(
+          'bg-background overflow-x-hidden overscroll-none font-sans antialiased',
+          fontVariables
+        )}
+      >
         <NextTopLoader color='var(--primary)' showSpinner={false} />
         <NuqsAdapter>
           <ThemeProvider

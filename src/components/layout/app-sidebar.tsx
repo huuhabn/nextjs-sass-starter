@@ -1,4 +1,9 @@
 'use client';
+import { useSyncExternalStore, useTransition } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useTheme } from 'next-themes';
+import { Switch } from '@/components/ui/switch';
+import { startThemeTransition } from '@/lib/theme-transition';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DropdownMenu,
@@ -6,7 +11,12 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import {
@@ -34,6 +44,9 @@ import { cn } from '@/lib/utils';
 import type { NavItem } from '@/types';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { languages } from '@/i18n/languages';
+import { getSavedLocale, setLocale } from '@/i18n/client';
+import { switchLocalePath } from '@/i18n/locale';
 import { Icons } from '../icons';
 import { OrgSwitcher } from '../org-switcher';
 
@@ -239,8 +252,36 @@ function NavUser() {
   const { activeWorkspace } = useWorkspace();
   const user = session?.user;
   const router = useRouter();
+  const pathname = usePathname();
   const { isMobile, state } = useSidebar();
   const railMenu = state === 'collapsed' && !isMobile;
+  const [isPending, startTransition] = useTransition();
+  const { t, i18n } = useTranslation(['nav', 'common']);
+  const { setTheme, resolvedTheme } = useTheme();
+
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  const isDark = mounted && resolvedTheme === 'dark';
+
+  const handleThemeToggle = (e?: React.MouseEvent) => {
+    const newMode = isDark ? 'light' : 'dark';
+    startThemeTransition(() => setTheme(newMode), e);
+  };
+
+  const activeLocale = i18n.language || getSavedLocale();
+  const currentLang = languages.find((l) => l.value === activeLocale);
+
+  const handleLocaleChange = (locale: string) => {
+    startTransition(async () => {
+      await setLocale(locale);
+      const targetUrl = switchLocalePath(pathname, locale);
+      router.push(targetUrl);
+      router.refresh();
+    });
+  };
 
   const handleSignOut = async () => {
     await authClient.signOut();
@@ -289,6 +330,52 @@ function NavUser() {
               <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
                 <Icons.notification />
                 Notifications
+              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger disabled={isPending} className='cursor-pointer'>
+                  <Icons.globe className='size-4' />
+                  <span>{t('language', 'Language')}</span>
+                  <span className='text-muted-foreground ml-auto text-xs'>
+                    {currentLang?.name ?? activeLocale}
+                  </span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent
+                  side={isMobile ? 'bottom' : 'right'}
+                  align='start'
+                  className='min-w-36'
+                >
+                  <DropdownMenuRadioGroup value={activeLocale} onValueChange={handleLocaleChange}>
+                    {languages
+                      .filter((l) => l.supported)
+                      .map((lang) => (
+                        <DropdownMenuRadioItem
+                          key={lang.value}
+                          value={lang.value}
+                          className='cursor-pointer'
+                        >
+                          {lang.name}
+                        </DropdownMenuRadioItem>
+                      ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuItem
+                closeOnClick={false}
+                className='cursor-pointer justify-between'
+                onClick={(e) => {
+                  handleThemeToggle(e);
+                }}
+              >
+                <div className='flex items-center gap-2'>
+                  {isDark ? <Icons.moon className='size-4' /> : <Icons.sun className='size-4' />}
+                  <span>{t('theme.dark', { ns: 'common', defaultValue: 'Dark Mode' })}</span>
+                </div>
+                <Switch
+                  size='sm'
+                  checked={isDark}
+                  onCheckedChange={() => handleThemeToggle()}
+                  onClick={(e) => e.stopPropagation()}
+                />
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

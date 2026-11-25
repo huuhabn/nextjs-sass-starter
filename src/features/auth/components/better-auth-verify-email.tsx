@@ -105,10 +105,7 @@ export function BetterAuthVerifyEmail({ locale }: BetterAuthVerifyEmailProps) {
       </CardContent>
       <CardFooter className='flex flex-col gap-2'>
         {status === 'success' && (
-          <Button
-            className='w-full'
-            onClick={() => router.push(getLocalePath('/dashboard/overview', locale))}
-          >
+          <Button className='w-full' onClick={() => router.push(getLocalePath('/', locale))}>
             {t('verifyEmail.goToDashboard')}
           </Button>
         )}

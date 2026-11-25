@@ -51,7 +51,7 @@ export function BetterAuthSignUp({ locale }: BetterAuthSignUpProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const dashboardUrl = getLocalePath('/dashboard/overview', locale);
+  const dashboardUrl = getLocalePath('/', locale);
 
   const handleSignUp = async (e: React.SyntheticEvent) => {
     e.preventDefault();

@@ -6,7 +6,7 @@ export default async function Page() {
 
   if (!session?.user) {
     return redirect('/sign-in');
-  } else {
-    redirect('/dashboard/overview');
   }
+
+  redirect('/');
 }
